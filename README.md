@@ -1,6 +1,11 @@
 # PS1-3D-Shader
 A Unity shader meant to emulate PSX effects.
 
+The shader has options for transparency alpha clipping, vertex snapping, affine texture mapping, and fog using fixed-point math.
+
+Youtube link showcasing the shader. 1:15 long.
+https://www.youtube.com/watch?v=Mjp7MO6nOHw
+
 Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
 
 This work is licensed under a
