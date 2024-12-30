@@ -1,18 +1,19 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
 // Date: 12/30/2024
-// Version: 1.0
+// Version: 1.0.1
 // Shader: PS1 3D/Unlit
 // Description: A custom unlit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
+// Latest Update Change: Set the base colour to default to 1.0, and unhid it.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Unlit"
 {
     Properties
     {
         _MainTex("Base", 2D) = "white" {}
-        [HideInInspector] _Color("Color", Color) = (0.25, 0.25, 0.25, 1) //Darkened for better ambience with the unlit style
+        _Color("Color", Color) = (1.0, 1.0, 1.0, 1) //Darken for better ambience with the unlit style
         _TransparencyThreshold("Transparency Threshold", Range(0, 1)) = 0.5 //cuts anything with an alpha lower than 128
         _VertexResolution("Vertex Snapping Resolution", Float) = 96 //Size of the world grid that vertexes snap to 96 looks best to me
         _Affine("Affine Mapping", Range(0, 1)) = 1 //sets how much affine correction there isn't. 
@@ -95,7 +96,7 @@ Shader "PS1 3D/Unlit"
                 float2 uv;
                 // Affine range: 0 = perspective correct, 1 = full affine, 0.75 looks best in my opinion. More triangles makes the affine effect less noticeable
                 uv = i.texcoord.xy / i.texcoord.z;
-                fixed4 col = tex2D(_MainTex, uv) * _Color * 2; // Base colour
+                fixed4 col = tex2D(_MainTex, uv) * _Color; // Base colour
                 clip(col.a - _TransparencyThreshold); //Cuts out transparent parts
                 fixed4 fogCol = lerp(col, _FogColor, i.fogFactor); // Sets the fog factor and colour
                 return fogCol;
