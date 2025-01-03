@@ -1,12 +1,12 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
 // Date: 1/2/2025
-// Version: 1.1.1
+// Version: 1.1.2
 // Shader: PS1 3D/Unlit
 // Description: A custom unlit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: Added colour depth, improved dithering.
+// Update: Added true black clipping to mimic PS1 hardware, and improved dithering.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Unlit"
 {
@@ -111,7 +111,13 @@ Shader "PS1 3D/Unlit"
             {
                 float2 uv;
                 uv = i.texcoord.xy / i.texcoord.z;// Affine mode
-                fixed4 col = tex2D(_MainTex, uv) * _Color;
+                fixed4 col = tex2D(_MainTex, uv);
+                //Clip out black pixels
+                if (col.r * 255 <= 15 && col.g * 255 <= 15 && col.b * 255 <= 15) {
+                    clip(-1);
+                }
+                col = col * _Color;
+                clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
                 // Apply colour depth
                 col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColourDepth - 1)) / _ColourDepth);
                 col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColourDepth - 1)) / _ColourDepth);
