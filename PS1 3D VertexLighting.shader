@@ -1,12 +1,12 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
 // Date: 1/2/2025
-// Version: 1.0.0
+// Version: 1.0.1
 // Shader: PS1 3D/Vertex Lit
 // Description: A custom vertex lit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: N/A
+// Update: Added true black clipping to mimic PS1 hardware, and improved dithering.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Vertex Lit" {
     Properties {
@@ -199,8 +199,13 @@ Shader "PS1 3D/Vertex Lit" {
 
             fixed4 frag (v2f IN) : SV_Target {
                 float2 uv = IN.uv0.xy / IN.uv0.z; // Affine mode
-                fixed4 col = tex2D(_MainTex, uv) * _Color;
-                clip(col.a - _TransparencyThreshold); // Cuts out transparent parts
+                fixed4 col = tex2D(_MainTex, uv);
+                // Clip out black pixels
+                if (col.r * 255 <= 15 && col.g * 255 <= 15 && col.b * 255 <= 15) {
+                    clip(-1);
+                }
+                col = col * _Color;
+                clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
                 fixed4 tex;
                 tex = tex2D (_MainTex, uv);
                 //Apply colour depth
