@@ -1,9 +1,9 @@
 # ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 # Author: TotesNotJosh
 # Date: 1/3/2025
-# Version: 1.0.0
+# Version: 1.0.1
 # Description: A program that converts images to the PSX format. 256 x 256, 32 colours, and dithered black based transparency.
-# Update: N/A
+# Update: Updated transparency dither to work with PSX dither matrix format.
 # ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 from PIL import Image
 import os
@@ -221,10 +221,10 @@ def dither_colours(image): #Shader dithers so this isn't fully needed but could 
 
 def dither_transparency(image):
     dither_transparency_matrix = [
-        [8, 120, 30, 150],
+        [4, 120, 30, 150],
         [180, 60, 210, 90],
-        [45, 165, 15, 135],
-        [255, 105, 195, 75]]
+        [30, 150, 4, 120],
+        [210, 90, 180, 60]]
     width, height = image.size
     pixels = image.load()
     for y in range(height):
