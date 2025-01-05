@@ -9,7 +9,7 @@ The shader has options for transparency alpha clipping, vertex snapping, affine 
 
 ## Vertex Lighting
 ![Vertex Lit Int Fog](https://github.com/user-attachments/assets/defc9b0e-283a-4957-b263-04b5f2950802)
-<br>Lighting snaps to vertices, this only works with point-lights, other types of lights do not have an effect on the lighting in a scene using this shader.
+<br>Lighting snaps to vertices, this only works with point-lights with low importance, other types of lights do not have an effect on the lighting in a scene using this shader.
 
 ## Unlit
 ![Unlit Int Fog](https://github.com/user-attachments/assets/e8659ebc-f155-4a16-bb9a-0fb621f65950)
@@ -22,8 +22,15 @@ The shader has options for transparency alpha clipping, vertex snapping, affine 
 ## Image Processing Transparency
 ![half_redHD](https://github.com/user-attachments/assets/339995b5-3fec-4adf-80c4-6df29370d005) ![half_redSD](https://github.com/user-attachments/assets/372cefa5-84cc-4ac9-aa93-87cda2e3663c) ![half_redSD](https://github.com/user-attachments/assets/50d724ea-0383-48af-adae-f96873ccf3ea)
 <br>The image processing script will scale an image down to 256 x 256 pixels, reduce the colour-depth to 32, set RGB values of (0, 0, 0) to (0, 0, 8) and then dither pure black based on the alpha channels of the images. This is inline with how the PSX worked with images, RGB (0,0,0) was the transparency colour and partial transparency was dealt with by dithering the colours creating a mesh of transparency.
-<br> The image on the left is a solid red with an alpha of 128, the middle is what the converter converts it to, which is roughly 50% RGB(0, 0, 0) and 50%(255, 0, 0), the right is what it would look like with the RGB(0, 0, 0) clipped by the shader.
-## License
+<br> The image on the left is a solid red with an alpha of 128, the middle is what the converter converts it to, which is roughly 50% RGB(0, 0, 0) and 50%(255, 0, 0), the right is what it would look like with the RGB(0, 0, 0) clipped by the shader. This effect is more noticeable in GitHub's lightmode, if you are using darkmode(I am) zoom out you will see the first and third pictures look identical around 50% zoom.
+
+# Installation
+1. Create a new folder called Editor in your Assets folder.
+2. Copy the PS1 Shader GUI.cs file into this folder.
+3. Copy the .shader files anywhere in your asset folder hierarchy.
+4. Select your materials you want to add the shader to and in the drop down select PS1 3D > Unlit or Vertex Lit
+
+# License
 Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
 
 This work is licensed under a
