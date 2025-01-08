@@ -1,17 +1,16 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
 // Date: 1/5/2025
-// Version: 1.1.3
+// Version: 1.1.4
 // Shader: PS1 3D/Unlit
 // Description: A custom unlit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: Added toggle for black clipping transparency, added a toggle for affine warping, updated the in unity gui for the shader.
+// Update: Standardized to American English spelling.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Unlit"
 {
-    Properties
-    {
+    Properties {
         _Color("Main Color", Color) = (1.0, 1.0, 1.0, 1) //Darken for better ambience with the unlit style
         _MainTex("Base (RGB)", 2D) = "white" { }
         [Header(Transparency)][Space]
@@ -28,20 +27,17 @@ Shader "PS1 3D/Unlit"
         [MaterialToggle] _UseDithering("Dither", Float) = 1
         _ColorDepth("Color Depth", Int) = 32
     }
-    SubShader
-    {
+    SubShader {
         Tags { "Queue" = "Geometry" "RenderType" = "Opaque" }
         LOD 100
-        Pass
-        {
+        Pass {
             CGPROGRAM
             #include "UnityCG.cginc"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog //Disable unity's fog settings
             #undef UNITY_FOG
-            struct v2f
-            {
+            struct v2f {
                 float4 position : SV_POSITION;
                 float3 texcoord : TEXCOORD;
                 float fogFactor : TEXCOORD1;
@@ -65,8 +61,7 @@ Shader "PS1 3D/Unlit"
             #define FIXED_TO_FLOAT(x) ((float(x)) / FIXED_POINT_SCALE)
 
             //Dither Matrix used by the PSXACT emulator
-            int DitherMatrix(int2 uv)
-            {
+            int DitherMatrix(int2 uv) {
                 const int ditherMatrix[16] = {
                     -4, 0, -3, 1,
                      2, -2, 3, -1,
@@ -75,17 +70,15 @@ Shader "PS1 3D/Unlit"
                 };
                 return ditherMatrix[(uv.x % 4) + (uv.y % 4) * 4];
             }
-            int floorInt(float x)
-            {
+            int floorInt(float x) {
                 return (int)floor(x);
             }
-            v2f vert(appdata_base v)
-            {
+            v2f vert(appdata_base v) {
                 v2f o;
                 // Calculate world position
                 float4 worldPosition = mul(UNITY_MATRIX_MV, v.vertex);
                 // Vertex snapping
-                if (_VertexResolution > 0){
+                if (_VertexResolution > 0) {
                     int fixedX = FLOAT_TO_FIXED(worldPosition.x * _VertexResolution);
                     int fixedY = FLOAT_TO_FIXED(worldPosition.y * _VertexResolution);
                     int fixedZ = FLOAT_TO_FIXED(worldPosition.z * _VertexResolution);
@@ -119,8 +112,7 @@ Shader "PS1 3D/Unlit"
                 }
                 return o;
             }
-            fixed4 frag(v2f i) : SV_Target
-            {
+            fixed4 frag(v2f i) : SV_Target {
                 float2 uv;
                 if (_Affine > 0.5){
                     uv = i.texcoord.xy / i.texcoord.z; // Affine mode
@@ -136,7 +128,7 @@ Shader "PS1 3D/Unlit"
                     col = col * _Color;
                 }
                 clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
-                // Apply colour depth
+                // Apply color depth
                 col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1)) / _ColorDepth);
                 col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1)) / _ColorDepth);
                 col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1)) / _ColorDepth);
@@ -152,7 +144,7 @@ Shader "PS1 3D/Unlit"
                     col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
                 }
                 // Apply fog
-                fixed4 fogCol = lerp(col, _FogColor, i.fogFactor); //Sets the fog factor and colour
+                fixed4 fogCol = lerp(col, _FogColor, i.fogFactor); //Sets the fog factor and color
                 clip(1.0 - i.fogFactor + 0.1); //occludes objects in fog
                 return fogCol;
             }
