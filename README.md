@@ -3,6 +3,8 @@ A Unity shader meant to emulate PSX effects.
 
 The shader has options for transparency alpha clipping, vertex snapping, affine texture mapping, and fog using fixed-point math.
 
+Note: This is a work in progress so updates will be frequent, but every commit will be usable. I am also using Unity 2022.3.12f1 3D (Built-In Render Pipeline).
+
 ## Affine Texture Warp
 ![Affine Warp](https://github.com/user-attachments/assets/49291be8-9ffc-4f39-a734-43d00190ff15)
 <br>The shader removes the depth correction for textures causing a warp, this can be mitigated by increasing the triangle count.
