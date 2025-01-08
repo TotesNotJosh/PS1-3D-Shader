@@ -1,12 +1,12 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
 // Date: 1/5/2025
-// Version: 1.0.2
+// Version: 1.0.3
 // Shader: PS1 3D/Vertex Lit
 // Description: A custom vertex lit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: Added toggle for black clipping transparency, added a toggle for affine warping, updated the in unity gui for the shader.
+// Update: Standardized to American English spelling.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Vertex Lit" {
     Properties {
@@ -194,9 +194,9 @@ Shader "PS1 3D/Vertex Lit" {
                 float3 eyePos = worldPosition.xyz;
                 half3 eyeNormal = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, IN.normal).xyz);
                 half3 viewDir = -normalize(eyePos);
-                half3 lcolor = _Emission.rgb + _Color.rgb * glstate_lightmodel_ambient.rgb;
+                half3 lcolor = _Emission.rgb + (_Color.rgb / 1.) * glstate_lightmodel_ambient.rgb;
                 half3 specColor = 0.0;
-                half shininess = 12.8;//_Shininess * 128.0;
+                half shininess = 0.0;//_Shininess * 128.0;
                 LIGHT_LOOP_ATTRIBUTE for (int il = 0; il < LIGHT_LOOP_LIMIT; ++il) {
                     lcolor += computeOneLight(il, eyePos, eyeNormal, viewDir, _Color, shininess, specColor);
                 }
@@ -224,13 +224,12 @@ Shader "PS1 3D/Vertex Lit" {
                     if (col.r * 255 <= 15 && col.g * 255 <= 15 && col.b * 255 <= 15) {
                         clip(-1);
                     }
-                    col = col * _Color;
                 }
                 col = col * _Color;
                 clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
                 fixed4 tex;
                 tex = tex2D (_MainTex, uv);
-                //Apply colour depth
+                //Apply color depth
                 col.rgb = tex * IN.color;
                 col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1)) / _ColorDepth);
                 col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1)) / _ColorDepth);
@@ -247,9 +246,9 @@ Shader "PS1 3D/Vertex Lit" {
                     col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
                 }
                 // Apply fog
-                fixed4 fogCol = lerp(col, _FogColor, IN.fogFactor); // Sets the fog factor and colour
+                fixed4 fogCol = lerp(col, _FogColor, IN.fogFactor); // Sets the fog factor and color
                 clip(1.0 - IN.fogFactor + 0.1); //occludes objects in fog
-                return fogCol;
+                return fogCol / 2;
             }
             ENDCG
         }
