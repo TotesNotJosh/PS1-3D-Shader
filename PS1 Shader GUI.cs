@@ -20,9 +20,6 @@ public class PS1ShaderGUI : ShaderGUI
                 {
                     materialEditor.ShaderProperty(property, property.displayName);
                 }
-            } else if (property.name == "_Shininess") {
-                // Hide _Shininess property
-                continue;
             } else {
                 materialEditor.ShaderProperty(property, property.displayName);
             }
