@@ -1,26 +1,26 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
-// Date: 1/7/2025
-// Version: 1.0.0
+// Date: 1/8/2025
+// Version: 1.0.1
 // Shader: PS1 3D/Gouraud Lit
 // Description: A custom Gouraud shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: N/A
+// Update: Updated the dither and color depth process so that it won't split the colors.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Gouraud Lit" {
     Properties {
         _Color ("Main Color", Color) = (1,1,1,1)
         [HideInInspector]_SpecColor ("Spec Color", Color) = (0,0,0,0)
         _Emission ("Emissive Color", Color) = (0.0,0.0,0.0,0.0)
-        [PowerSlider(5.0)]  _Shininess1 ("Shininess", Range(0.01,1.0)) = 0.01 // Called _Shininess1 so it doesn't get culled by the editor script.
+        [PowerSlider(5.0)]  _Shininess ("Shininess", Range(0.01,1.0)) = 0.01
         _MainTex ("Base (RGB)", 2D) = "white" { }
         [Header(Transparency)][Space]
         [MaterialToggle]_BlackClipping("Clip Black Pixels", Float) = 1 // Clips out black
         _TransparencyThreshold("Alpha Threshold", Range(0, 1)) = 0.5 // Cuts anything with an alpha lower than 128
         [Header(Effects)][Space]
         [IntRange]_VertexResolution("Vertex Snapping Resolution", Range(0,8)) = 4 // Size of the world grid that vertexes snap to 96 looks best to me
-        [MaterialToggle]_Affine("Affine Mapping", Range(0, 1)) = 1 // Sets how much affine correction there isn't.
+        [MaterialToggle]_Affine("Affine Mapping", Range(0, 1)) = 1 // Toggles texture warping based on perspective
         [MaterialToggle] _UseIntFog("Use Integer Fog Math", Float) = 0 // A bool to determine whether you want a hard edge or use the fixed point system. Fixed point is recommended
         _FogSteps("Integer Fog Steps", Int) = 4 // How many steps you want for int fog
         _FogStart("Fog Start Distance", Int) = 5
@@ -121,7 +121,7 @@ Shader "PS1 3D/Gouraud Lit" {
             half4 _Color;
             half4 _SpecColor;
             half4 _Emission;
-            half _Shininess1;
+            half _Shininess;
             int4 unity_VertexLightParams;
             float4 _MainTex_ST;
             float _BlackClipping;
@@ -203,7 +203,7 @@ Shader "PS1 3D/Gouraud Lit" {
                 half3 viewDir = -normalize(eyePos);
                 half3 lcolor = _Emission.rgb + (_Color.rgb / 1.) * glstate_lightmodel_ambient.rgb;
                 half3 specColor = _SpecColor;
-                half shininess = 1 * 128.0;//_Shininess1 * 128.0;
+                half shininess = _Shininess * 128.0;
                 LIGHT_LOOP_ATTRIBUTE for (int il = 0; il < LIGHT_LOOP_LIMIT; ++il) {
                     lcolor += computeOneLight(il, eyePos, eyeNormal, viewDir, _Color, shininess, specColor);
                 }
@@ -231,28 +231,23 @@ Shader "PS1 3D/Gouraud Lit" {
                     if (col.r * 255 <= 15 && col.g * 255 <= 15 && col.b * 255 <= 15) {
                         clip(-1);
                     }
-                    col = col * _Color;
                 }
                 col = col * _Color;
                 clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
                 fixed4 tex;
                 tex = tex2D (_MainTex, uv);
-                //Apply color depth
-                col.rgb = tex * IN.color;
-                col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1)) / _ColorDepth);
-                col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1)) / _ColorDepth);
-                col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1)) / _ColorDepth);
-                col.a = fixed4(1,1,1,1).a;
+                col.rgb = tex * IN.color;              
                 // Apply PSX hardware dithering
                 if (_UseDithering > 0.5) {
-                    float2 scaledPos = IN.pos.xy * (0.65);
+                    float2 psxScale = float2(256.0, 224.0) / _ScreenParams.xy;
+                    float2 scaledPos = IN.pos.xy * psxScale;
                     int2 pos = int2(scaledPos);  
                     int dither = DitherMatrix(pos);
-                    int ditherScale = FLOAT_TO_FIXED(1.0 / 16.0);
-                    col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
-                    col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
-                    col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
+                    col.rgb = saturate(floor((col.rgb * 255) + dither) / 255);
                 }
+                // Apply color depth
+                col.rgb = saturate((floor(col.rgb * (_ColorDepth - 1)) / (_ColorDepth - 1)));
+                col.a = fixed4(1,1,1,1).a;
                 // Apply fog
                 fixed4 fogCol = lerp(col, _FogColor, IN.fogFactor); // Sets the fog factor and color
                 clip(1.0 - IN.fogFactor + 0.1); //occludes objects in fog
