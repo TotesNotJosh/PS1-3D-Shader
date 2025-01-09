@@ -1,13 +1,14 @@
 # ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 # Author: TotesNotJosh
 # Date: 1/3/2025
-# Version: 1.0.1
+# Version: 1.0.2
 # Description: A program that converts images to the PSX format. 256 x 256, 32 colours, and dithered black based transparency.
-# Update: Updated transparency dither to work with PSX dither matrix format.
+# Update: Added semi-transparency option.
 # ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 from PIL import Image
 import os
 import pickle
+import numpy
 
 FOLDER_FILENAME = 'folder_filepath.pkl'
 FINAL_HEIGHT = 256
@@ -38,11 +39,18 @@ def quantize_images(input_folder, output_folder, file_extension):
             quantize_image(file, input_folder, output_folder, file_extension)
             counter += 1
 
-def do_all(input_folder, output_folder, file_extension):
+def process_images_with_black_transparency(input_folder, output_folder, file_extension):
     counter = 0
     print('PlayStation styling images.')
     for file in os.listdir(input_folder):
-            the_works(file, input_folder, output_folder, file_extension)
+            process_image_with_black_transparency(file, input_folder, output_folder, file_extension)
+            counter += 1
+
+def process_images_with_semi_transparency(input_folder, output_folder, file_extension):
+    counter = 0
+    print('PlayStation styling images.')
+    for file in os.listdir(input_folder):
+            process_image_with_semi_transparency(file, input_folder, output_folder, file_extension)
             counter += 1
 
 def exit():
@@ -52,8 +60,9 @@ OPTIONS = {
     '1': reduce_images,
     '2': adjust_black_points,
     '3': quantize_images,
-    '4': do_all,
-    '5': exit}
+    '4': process_images_with_black_transparency,
+    '5': process_images_with_semi_transparency,
+    '6': exit}
 
 def main():
     introduce_program()
@@ -160,7 +169,7 @@ def quantize_image(file, input_folder, output_folder, file_extension):
         image = reduce_or_quantize(image, final_height = image.height, second_pass = True, total_colours = 32)
         save_image(image, output, file_extension)
 
-def the_works(file, input_folder, output_folder, file_extension):
+def process_image_with_black_transparency(file, input_folder, output_folder, file_extension):
     input = os.path.join(input_folder, file)
     image = Image.open(input).convert("RGBA")
     if file.endswith("HD.jpg"):
@@ -179,6 +188,27 @@ def the_works(file, input_folder, output_folder, file_extension):
     image = image.convert("RGB")
     save_image(image, output, file_extension)
 
+def process_image_with_semi_transparency(file, input_folder, output_folder, file_extension):
+    input = os.path.join(input_folder, file)
+    image = Image.open(input).convert("RGBA")
+    if file.endswith("HD.jpg"):
+        output_file = file.replace("HD", "SD")
+        output = os.path.join(output_folder, output_file)
+        image = reduce_or_quantize(image)
+        image = reduce_or_quantize(image, final_height = image.height, second_pass = True, total_colours = 32)
+        image = black(image)
+    if file.endswith("HD.png"):
+        output_file = file.replace("HD", "SD")
+        output = os.path.join(output_folder, output_file)
+        image = reduce_or_quantize(image)
+        image = reduce_or_quantize(image, final_height = image.height, second_pass = True, total_colours = 32)
+        image = black(image)
+        alpha_channel = numpy.array(image)[:, :, 3]
+        if numpy.mean(alpha_channel) < 255:
+            image = make_semi_transparent(image)
+    image = image.convert("RGBA")
+    save_image(image, output, file_extension)
+
 def black(image):
     image = image.convert("RGBA")
     for y in range(image.height):
@@ -187,7 +217,7 @@ def black(image):
             if r == 0 and g == 0 and b == 0: #True black was used for transparency so they added a hint of colour to make it visible usually red and/or blue
                 r = 0
                 g = 0
-                b = 8 #8 because of the 32 colour palette
+                b = 16 #16 because of the 32 colour palette
                 a = a
             image.putpixel((x, y), (r, g, b, a))
     return image
@@ -235,6 +265,15 @@ def dither_transparency(image):
                 pixels[x, y] = (r, g, b, 255)
             else:
                 pixels[x, y] = (0, 0, 0, 255)
+    return image
+
+def make_semi_transparent(image): #This will make the entire image half-transparent if there is any transparency.
+    width, height = image.size
+    pixels = image.load()
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = pixels[x, y]
+            pixels[x, y] = (r, g, b, 128)
     return image
 
 def save_image(image, output, file_extension = 'png'):
