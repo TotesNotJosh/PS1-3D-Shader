@@ -1,32 +1,31 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
-// Date: 1/5/2025
-// Version: 1.0.3
+// Date: 1/8/2025
+// Version: 1.0.4
 // Shader: PS1 3D/Vertex Lit
 // Description: A custom vertex lit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: Standardized to American English spelling.
+// Update: Updated the dither and color depth process so that it won't split the colors. Updated to flat shading by disabling interpolation, removed shininess.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Vertex Lit" {
     Properties {
         _Color ("Main Color", Color) = (1,1,1,1)
         [HideInInspector]_SpecColor ("Spec Color", Color) = (0,0,0,0)
         _Emission ("Emissive Color", Color) = (0.0,0.0,0.0,0.0)
-        [PowerSlider(5.0)]  _Shininess ("Shininess", Range(0.01,1.0)) = 0.01
         _MainTex ("Base (RGB)", 2D) = "white" { }
         [Header(Transparency)][Space]
         [MaterialToggle]_BlackClipping("Clip Black Pixels", Float) = 1 //Clips out black
-        _TransparencyThreshold("Alpha Threshold", Range(0, 1)) = 0.5 // cuts anything with an alpha lower than 128
+        _TransparencyThreshold("Alpha Threshold", Range(0, 1)) = 0.5 // Cuts anything with an alpha lower than 128
         [Header(Effects)][Space]
         [IntRange]_VertexResolution("Vertex Snapping Resolution", Range(0,8)) = 4 // Size of the world grid that vertexes snap to 96 looks best to me
-        [MaterialToggle]_Affine("Affine Mapping", Range(0, 1)) = 1 // sets how much affine correction there isn't.
+        [MaterialToggle]_Affine("Affine Mapping", Range(0, 1)) = 1 // Toggles texture warping based on perspective
         [MaterialToggle] _UseIntFog("Use Integer Fog Math", Float) = 0 // A bool to determine whether you want a hard edge or use the fixed point system. Fixed point is recommended
         _FogSteps("Integer Fog Steps", Int) = 4 // How many steps you want for int fog
         _FogStart("Fog Start Distance", Int) = 5
         _FogEnd("Fog End Distance", Int) = 20 // Where the world is no longer visible
         _FogColor("Fog Color", Color) = (0.25, 0.25, 0.25, 1)
-        [MaterialToggle] _UseDithering("Dither", Float) = 1
+        [MaterialToggle] _UseDithering("Dither", Float) = 0 // PSX only used dithering on Gouraud shaded objects and texture blended objects.
         _ColorDepth("Color Depth", Int) = 32
     }
     SubShader { 
@@ -58,22 +57,14 @@ Shader "PS1 3D/Vertex Lit" {
             #pragma multi_compile __ POINT SPOT
 
             // Compute illumination from one light, given attenuation
-            half3 computeLighting (int idx, half3 dirToLight, half3 eyeNormal, half3 viewDir, half4 diffuseColor, half shininess, half atten, inout half3 specColor) {
+            half3 computeLighting (int idx, half3 dirToLight, half3 eyeNormal, half3 viewDir, half4 diffuseColor, half atten, inout half3 specColor) {
                 half NdotL = max(dot(eyeNormal, dirToLight), 0.0);
-                // diffuse
                 half3 color = NdotL * diffuseColor.rgb * unity_LightColor[idx].rgb;
-                // specular
-                if (NdotL > 0.0) {
-                    half3 h = normalize(dirToLight + viewDir);
-                    half HdotN = max(dot(eyeNormal, h), 0.0);
-                    half sp = saturate(pow(HdotN, shininess));
-                    specColor += (atten * sp) * unity_LightColor[idx].rgb;
-                }
             return color * atten;
             }
 
             // Compute attenuation & illumination from one light
-            half3 computeOneLight(int idx, float3 eyePosition, half3 eyeNormal, half3 viewDir, half4 diffuseColor, half shininess, inout half3 specColor) {
+            half3 computeOneLight(int idx, float3 eyePosition, half3 eyeNormal, half3 viewDir, half4 diffuseColor, inout half3 specColor) {
                 float3 dirToLight = unity_LightPosition[idx].xyz;
                 half att = 1.0;
                 #if defined(POINT) || defined(SPOT)
@@ -90,7 +81,7 @@ Shader "PS1 3D/Vertex Lit" {
                     #endif
                 #endif
                 att *= 0.5;
-                return min (computeLighting (idx, dirToLight, eyeNormal, viewDir, diffuseColor, shininess, att, specColor), 1.0);
+                return min (computeLighting (idx, dirToLight, eyeNormal, viewDir, diffuseColor, att, specColor), 1.0);
             }
 
             //Dither Matrix used by PSX
@@ -114,7 +105,6 @@ Shader "PS1 3D/Vertex Lit" {
             half4 _Color;
             half4 _SpecColor;
             half4 _Emission;
-            half _Shininess;
             int4 unity_VertexLightParams;
             float4 _MainTex_ST;
             float _BlackClipping;
@@ -134,7 +124,7 @@ Shader "PS1 3D/Vertex Lit" {
 
             struct appdata {
                 float3 pos : POSITION;
-                float3 normal : NORMAL;
+                nointerpolation float3 normal : NORMAL;
                 float3 uv0 : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -196,9 +186,8 @@ Shader "PS1 3D/Vertex Lit" {
                 half3 viewDir = -normalize(eyePos);
                 half3 lcolor = _Emission.rgb + (_Color.rgb / 1.) * glstate_lightmodel_ambient.rgb;
                 half3 specColor = 0.0;
-                half shininess = 0.0;//_Shininess * 128.0;
                 LIGHT_LOOP_ATTRIBUTE for (int il = 0; il < LIGHT_LOOP_LIMIT; ++il) {
-                    lcolor += computeOneLight(il, eyePos, eyeNormal, viewDir, _Color, shininess, specColor);
+                    lcolor += computeOneLight(il, eyePos, eyeNormal, viewDir, _Color, specColor);
                 }
                 color.rgb = lcolor.rgb;
                 color.a = _Color.a;
@@ -227,24 +216,19 @@ Shader "PS1 3D/Vertex Lit" {
                 }
                 col = col * _Color;
                 clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
-                fixed4 tex;
-                tex = tex2D (_MainTex, uv);
-                //Apply color depth
-                col.rgb = tex * IN.color;
-                col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1)) / _ColorDepth);
-                col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1)) / _ColorDepth);
-                col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1)) / _ColorDepth);
-                col.a = fixed4(1,1,1,1).a;
+                fixed4 tex = tex2D(_MainTex, uv);
+                col.rgb = tex * IN.color;              
                 // Apply PSX hardware dithering
                 if (_UseDithering > 0.5) {
-                    float2 scaledPos = IN.pos.xy * (0.65);
+                    float2 psxScale = float2(256.0, 224.0) / _ScreenParams.xy;
+                    float2 scaledPos = IN.pos.xy * psxScale;
                     int2 pos = int2(scaledPos);  
                     int dither = DitherMatrix(pos);
-                    int ditherScale = FLOAT_TO_FIXED(1.0 / 16.0);
-                    col.r = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.r) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
-                    col.g = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.g) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
-                    col.b = FIXED_TO_FLOAT(floor(FLOAT_TO_FIXED(col.b) * (_ColorDepth - 1) + dither * ditherScale) / _ColorDepth);
+                    col.rgb = saturate(floor((col.rgb * 255) + dither) / 255);
                 }
+                // Apply color depth
+                col.rgb = saturate((floor(col.rgb * (_ColorDepth - 1)) / (_ColorDepth - 1)));
+                col.a = fixed4(1,1,1,1).a;
                 // Apply fog
                 fixed4 fogCol = lerp(col, _FogColor, IN.fogFactor); // Sets the fog factor and color
                 clip(1.0 - IN.fogFactor + 0.1); //occludes objects in fog
