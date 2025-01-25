@@ -1,12 +1,13 @@
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 // Author: TotesNotJosh
-// Date: 1/8/2025
-// Version: 1.1.5
+// Date: 1/25/2025
+// Version: 1.2.0
 // Shader: PS1 3D/Unlit
 // Description: A custom unlit shader for Unity emulating PS1-era graphical effects.
 // Including affine texture warping, and integer/fixed-point math for fog, dithering and vertex snapping.
 // Designed to achieve a retro look reminiscent of early 3D hardware limitations.
-// Update: Updated the dither and color depth process so that it won't split the colors.
+// Update: Huge overhaul to dithering, looked at actual PSX dithered images and reverse engineered them testing color values and positions,
+//         switched the ditering to work on the texture not screen as well.
 // ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬
 Shader "PS1 3D/Unlit"
 {
@@ -43,6 +44,7 @@ Shader "PS1 3D/Unlit"
                 float fogFactor : TEXCOORD1;
             };
             sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
             float4 _MainTex_ST;
             float4 _Color;
             float _BlackClipping;
@@ -62,11 +64,12 @@ Shader "PS1 3D/Unlit"
 
             //Dither Matrix used by the PSXACT emulator
             int DitherMatrix(int2 uv) {
+                const int ditherValue = 8;
                 const int ditherMatrix[16] = {
-                    -4, 0, -3, 1,
-                     2, -2, 3, -1,
-                    -3, 1, -4, 0,
-                     3, -1, 2, -2
+                    -ditherValue, ditherValue, -ditherValue, ditherValue,
+                     ditherValue, -ditherValue, ditherValue, -ditherValue,
+                    -ditherValue, ditherValue, -ditherValue, ditherValue,
+                     ditherValue, -ditherValue, ditherValue, -ditherValue
                 };
                 return ditherMatrix[(uv.x % 4) + (uv.y % 4) * 4];
             }
@@ -128,11 +131,9 @@ Shader "PS1 3D/Unlit"
                     col = col * _Color;
                 }
                 clip(col.a - _TransparencyThreshold); // Cuts out transparent pixels
-                if (_UseDithering > 0.5){
-                    float2 psxScale = float2(256.0, 224.0) / _ScreenParams.xy; // This is the lowest screen resolution 
-                    float2 scaledPos = i.position.xy * psxScale;
-                    int2 pos = int2(scaledPos);  
-                    int dither = DitherMatrix(pos);
+                if (_UseDithering > 0.5) {
+                    int2 texelPos = int2(floor(uv * _MainTex_TexelSize.zw)); // Use .zw for texture size
+                    int dither = DitherMatrix(texelPos);
                     col.rgb = saturate(floor((col.rgb * 255) + dither) / 255);
                 }
                 // Apply color depth
